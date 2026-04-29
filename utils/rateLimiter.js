@@ -1,8 +1,8 @@
 const { db } = require('../firebase/admin');
 const PQueue = require('p-queue').default;
 
-// Global queue to limit requests to ~50 per minute (1.2s between requests)
-const queue = new PQueue({ interval: 60000, intervalCap: 50 });
+// 75,000/day ~= 0.868 req/s. Keep a safety margin with ~0.857 req/s.
+const queue = new PQueue({ interval: 7000, intervalCap: 6, concurrency: 1 });
 
 const MAX_DAILY_REQUESTS = 75000;
 const HARD_STOP_THRESHOLD = 74000;
@@ -61,7 +61,7 @@ async function updateLastSync() {
 
 async function canMakeRequest() {
   const usage = await getUsage();
-  if (usage.requests >= HARD_STOP_THRESHOLD) {
+  if (usage.requests >= HARD_STOP_THRESHOLD || usage.requests >= MAX_DAILY_REQUESTS) {
     console.warn(`[RateLimiter] Hard stop reached: ${usage.requests} requests today.`);
     return false;
   }
@@ -92,5 +92,6 @@ async function enqueueApiCall(task) {
 module.exports = {
   enqueueApiCall,
   getUsage,
-  canMakeRequest
+  canMakeRequest,
+  queue
 };
