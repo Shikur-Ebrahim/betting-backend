@@ -95,11 +95,16 @@ async function writeMatchWithLeagueIndex(match) {
 }
 
 async function writeOdds(fixtureId, oddsPayload, mode = 'unknown') {
+  if (!Array.isArray(oddsPayload) || oddsPayload.length === 0) {
+    return false;
+  }
+
   const id = String(fixtureId);
   const data = {
     fixtureId: id,
     mode,
     bookmakers: oddsPayload,
+    odds: oddsPayload,
     updatedAt: new Date().toISOString()
   };
 
@@ -112,6 +117,16 @@ async function writeOdds(fixtureId, oddsPayload, mode = 'unknown') {
   }, { merge: true });
 
   return true;
+}
+
+function pickBookmakersFromOddsResponse(oddsResponse) {
+  if (!Array.isArray(oddsResponse) || oddsResponse.length === 0) return null;
+  for (const row of oddsResponse) {
+    if (Array.isArray(row?.bookmakers) && row.bookmakers.length > 0) {
+      return row.bookmakers;
+    }
+  }
+  return null;
 }
 
 /**
@@ -159,8 +174,9 @@ async function syncUpcoming() {
         const diff = matchTime - Date.now();
         if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
           const odds = await footballApi.getOdds(match.fixture.id);
-          if (odds && odds.length > 0) {
-            await writeOdds(match.fixture.id, odds[0].bookmakers, 'prematch');
+          const bookmakers = pickBookmakersFromOddsResponse(odds);
+          if (bookmakers) {
+            await writeOdds(match.fixture.id, bookmakers, 'prematch');
           }
         }
       }
@@ -189,8 +205,9 @@ async function syncLiveOdds() {
 
     for (const id of batch) {
       const odds = await footballApi.getOdds(id);
-      if (odds && odds.length > 0) {
-        await writeOdds(id, odds[0].bookmakers, 'live');
+      const bookmakers = pickBookmakersFromOddsResponse(odds);
+      if (bookmakers) {
+        await writeOdds(id, bookmakers, 'live');
       }
     }
   } catch (error) {
@@ -219,8 +236,9 @@ async function syncPrematchOdds() {
       if (lastOdds && now - lastOdds < 5 * 60 * 1000) continue;
 
       const odds = await footballApi.getOdds(doc.id);
-      if (odds && odds.length > 0) {
-        await writeOdds(doc.id, odds[0].bookmakers, 'prematch');
+      const bookmakers = pickBookmakersFromOddsResponse(odds);
+      if (bookmakers) {
+        await writeOdds(doc.id, bookmakers, 'prematch');
       }
     }
   } catch (error) {
