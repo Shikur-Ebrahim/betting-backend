@@ -10,6 +10,7 @@ let liveCursor = 0;
 
 const LEAGUES = [2, 3, 39, 140, 135, 78, 61, 94, 88, 848];
 const LIVE_ODDS_BATCH_SIZE = Number(process.env.LIVE_ODDS_BATCH_SIZE || 8);
+const PREMATCH_ODDS_WINDOW_HOURS = Number(process.env.PREMATCH_ODDS_WINDOW_HOURS || 72);
 
 function getHash(data) {
   return crypto.createHash('md5').update(JSON.stringify(data)).digest('hex');
@@ -160,6 +161,7 @@ async function syncLiveMatches() {
  */
 async function syncUpcoming() {
   const season = getSeason();
+  const discoveredLeagues = new Map();
   console.log(`[Sync] Starting Upcoming Matches Sync for Season ${season}...`);
   for (const leagueId of LEAGUES) {
     try {
@@ -167,12 +169,23 @@ async function syncUpcoming() {
       if (!matches) continue;
 
       for (const match of matches) {
+        const lid = String(match?.league?.id || leagueId);
+        if (!discoveredLeagues.has(lid)) {
+          discoveredLeagues.set(lid, {
+            id: Number(match?.league?.id || leagueId),
+            name: match?.league?.name || `League ${leagueId}`,
+            country: match?.league?.country || 'Unknown',
+            logo: match?.league?.logo || '',
+            type: match?.league?.type || 'League'
+          });
+        }
+
         await writeMatchWithLeagueIndex(match);
 
-        // If match is within next 48 hours, pre-load prematch odds
+        // Pre-load prematch odds for near-term fixtures
         const matchTime = new Date(match.fixture.date).getTime();
         const diff = matchTime - Date.now();
-        if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
+        if (diff > 0 && diff < PREMATCH_ODDS_WINDOW_HOURS * 60 * 60 * 1000) {
           const odds = await footballApi.getOdds(match.fixture.id);
           const bookmakers = pickBookmakersFromOddsResponse(odds);
           if (bookmakers) {
@@ -183,6 +196,12 @@ async function syncUpcoming() {
     } catch (error) {
       console.error(`[Sync] Upcoming failed for league ${leagueId}:`, error.message);
     }
+  }
+
+  if (discoveredLeagues.size > 0) {
+    await db.collection('config').doc('leagues_list').set({
+      leagues: Array.from(discoveredLeagues.values())
+    }, { merge: true });
   }
 }
 
@@ -222,14 +241,14 @@ async function syncPrematchOdds() {
   console.log('[Sync] Starting Prematch Odds Sync...');
   try {
     const now = Date.now();
-    const in12Hours = now + 12 * 60 * 60 * 1000;
+    const inWindow = now + PREMATCH_ODDS_WINDOW_HOURS * 60 * 60 * 1000;
     const snapshot = await db.collection('fixtures').get();
 
     for (const doc of snapshot.docs) {
       const fixture = doc.data();
       const kickoff = new Date(fixture?.fixture?.date || 0).getTime();
       const status = fixture?.fixture?.status?.short;
-      if (!kickoff || kickoff < now || kickoff > in12Hours) continue;
+      if (!kickoff || kickoff < now || kickoff > inWindow) continue;
       if (status === 'LIVE' || status === '1H' || status === '2H') continue;
 
       const lastOdds = fixture?.oddsUpdatedAt ? new Date(fixture.oddsUpdatedAt).getTime() : 0;
