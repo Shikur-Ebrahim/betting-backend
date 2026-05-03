@@ -52,6 +52,53 @@ async function ensureSchema() {
       last_error TEXT,
       last_error_time TIMESTAMPTZ
     );
+
+    CREATE TABLE IF NOT EXISTS leagues (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      country TEXT NOT NULL,
+      logo TEXT,
+      season INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_leagues_country ON leagues(country);
+
+    CREATE TABLE IF NOT EXISTS fixtures (
+      id INTEGER PRIMARY KEY,
+      league_id INTEGER NOT NULL REFERENCES leagues(id),
+      home_team TEXT NOT NULL,
+      away_team TEXT NOT NULL,
+      home_team_logo TEXT,
+      away_team_logo TEXT,
+      fixture_date TIMESTAMPTZ NOT NULL,
+      status TEXT DEFAULT 'NS',
+      venue TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_fixtures_league_date ON fixtures(league_id, fixture_date);
+    CREATE INDEX IF NOT EXISTS idx_fixtures_date ON fixtures(fixture_date);
+
+    CREATE TABLE IF NOT EXISTS odds (
+      fixture_id INTEGER NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
+      bookmaker TEXT,
+      home_odds NUMERIC,
+      draw_odds NUMERIC,
+      away_odds NUMERIC,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (fixture_id, bookmaker)
+    );
+    CREATE INDEX IF NOT EXISTS idx_odds_fixture ON odds(fixture_id);
+
+    CREATE TABLE IF NOT EXISTS tracked_fixtures (
+      fixture_id INTEGER PRIMARY KEY REFERENCES fixtures(id) ON DELETE CASCADE,
+      has_odds BOOLEAN NOT NULL DEFAULT false,
+      last_checked TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_tracked_fixtures_odds ON tracked_fixtures(has_odds);
   `);
 }
 
