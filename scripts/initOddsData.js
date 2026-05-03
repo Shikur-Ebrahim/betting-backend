@@ -16,7 +16,16 @@ async function initializeOddsData() {
       { id: 140, name: 'La Liga', country: 'Spain', logo: 'https://media.api-sports.io/football/leagues/140.png', season: 2024 },
       { id: 135, name: 'Serie A', country: 'Italy', logo: 'https://media.api-sports.io/football/leagues/135.png', season: 2024 },
       { id: 78, name: 'Bundesliga', country: 'Germany', logo: 'https://media.api-sports.io/football/leagues/78.png', season: 2024 },
-      { id: 61, name: 'Ligue 1', country: 'France', logo: 'https://media.api-sports.io/football/leagues/61.png', season: 2024 }
+      { id: 61, name: 'Ligue 1', country: 'France', logo: 'https://media.api-sports.io/football/leagues/61.png', season: 2024 },
+      { id: 2, name: 'Champions League', country: 'Europe', logo: 'https://media.api-sports.io/football/leagues/2.png', season: 2024 },
+      { id: 3, name: 'Europa League', country: 'Europe', logo: 'https://media.api-sports.io/football/leagues/3.png', season: 2024 },
+      { id: 848, name: 'Eredivisie', country: 'Netherlands', logo: 'https://media.api-sports.io/football/leagues/848.png', season: 2024 },
+      { id: 394, name: 'Primeira Liga', country: 'Portugal', logo: 'https://media.api-sports.io/football/leagues/394.png', season: 2024 },
+      { id: 403, name: 'Russian Premier League', country: 'Russia', logo: 'https://media.api-sports.io/football/leagues/403.png', season: 2024 },
+      { id: 135, name: 'Serie A', country: 'Italy', logo: 'https://media.api-sports.io/football/leagues/135.png', season: 2024 },
+      { id: 71, name: 'Serie B', country: 'Italy', logo: 'https://media.api-sports.io/football/leagues/71.png', season: 2024 },
+      { id: 140, name: 'Segunda Division', country: 'Spain', logo: 'https://media.api-sports.io/football/leagues/140.png', season: 2024 },
+      { id: 384, name: 'Liga 1', country: 'Romania', logo: 'https://media.api-sports.io/football/leagues/384.png', season: 2024 }
     ];
     
     // Save leagues
