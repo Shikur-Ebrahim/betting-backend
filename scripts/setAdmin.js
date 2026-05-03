@@ -1,38 +1,33 @@
-const { db } = require('../firebase/admin');
-const dotenv = require('dotenv');
-const path = require('path');
-
-// Load env vars
-dotenv.config({ path: path.join(__dirname, '../.env') });
-
 /**
- * Set a user as admin by their phone number (e.g. 251904174741)
+ * Set a user as admin by phone (e.g. 251904174741) or full synthetic email.
+ * Usage: node scripts/setAdmin.js 2519XXXXXXXX
  */
-async function setAdmin(phone) {
-  try {
-    const email = `${phone}@gmail.com`;
-    const usersRef = db.collection('users');
-    const snapshot = await usersRef.where('email', '==', email).get();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const { pool } = require('../db/pool');
 
-    if (snapshot.empty) {
-      console.log(`No user found with email: ${email}`);
-      return;
-    }
-
-    const userDoc = snapshot.docs[0];
-    await userDoc.ref.update({ role: 'admin' });
-    
-    console.log(`SUCCESS: User ${email} is now an ADMIN.`);
-  } catch (error) {
-    console.error('Error setting admin:', error);
+async function main() {
+  const arg = process.argv[2];
+  if (!arg) {
+    console.error('Usage: node scripts/setAdmin.js <phoneOrEmail>');
+    process.exit(1);
   }
+
+  const email = arg.includes('@') ? arg.toLowerCase() : `251${arg.replace(/^0/, '')}@gmail.com`;
+
+  const { rowCount } = await pool.query(
+    `UPDATE users SET role = 'admin', updated_at = NOW() WHERE LOWER(email) = $1`,
+    [email]
+  );
+
+  if (rowCount === 0) {
+    console.error('No user found for', email);
+    process.exit(1);
+  }
+  console.log('Updated user to admin:', email);
+  await pool.end();
 }
 
-// Get phone from command line
-const phone = process.argv[2];
-if (!phone) {
-  console.log('Usage: node setAdmin.js <phone_number>');
-  console.log('Example: node setAdmin.js 904174741');
-} else {
-  setAdmin(phone);
-}
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

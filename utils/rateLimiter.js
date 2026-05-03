@@ -1,62 +1,72 @@
-const { db } = require('../firebase/admin');
 const PQueue = require('p-queue').default;
+const { pool } = require('../db/pool');
 
-// 75,000/day ~= 0.868 req/s. Keep a safety margin with ~0.857 req/s.
 const queue = new PQueue({ interval: 7000, intervalCap: 6, concurrency: 1 });
 
 const MAX_DAILY_REQUESTS = 75000;
 const HARD_STOP_THRESHOLD = 74000;
 
 async function getUsage() {
-  const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const docRef = db.collection('sync_stats').doc(dateStr);
-  const doc = await docRef.get();
+  const dateStr = new Date().toISOString().split('T')[0];
+  const { rows } = await pool.query(`SELECT * FROM sync_stats WHERE date_str = $1`, [dateStr]);
 
-  if (!doc.exists) {
-    // Daily Reset Logic: Initialize new day
+  if (!rows[0]) {
     const initialData = {
       requests: 0,
       errorCount: 0,
       lastSyncTime: null,
-      date: dateStr
+      date: dateStr,
     };
-    await docRef.set(initialData);
+    await pool.query(
+      `INSERT INTO sync_stats (date_str, requests, error_count)
+       VALUES ($1, 0, 0)
+       ON CONFLICT (date_str) DO NOTHING`,
+      [dateStr]
+    );
     return initialData;
   }
 
-  return doc.data();
+  const d = rows[0];
+  return {
+    requests: d.requests,
+    errorCount: d.error_count,
+    lastSyncTime: d.last_sync_time,
+    date: dateStr,
+  };
 }
 
 async function incrementUsage() {
   const dateStr = new Date().toISOString().split('T')[0];
-  const docRef = db.collection('sync_stats').doc(dateStr);
-  
-  await db.runTransaction(async (transaction) => {
-    const doc = await transaction.get(docRef);
-    const newRequests = (doc.data()?.requests || 0) + 1;
-    transaction.update(docRef, { requests: newRequests });
-  });
+  await pool.query(
+    `INSERT INTO sync_stats (date_str, requests, error_count)
+     VALUES ($1, 1, 0)
+     ON CONFLICT (date_str) DO UPDATE SET
+       requests = sync_stats.requests + 1`,
+    [dateStr]
+  );
 }
 
 async function logError(errorMsg) {
   const dateStr = new Date().toISOString().split('T')[0];
-  const docRef = db.collection('sync_stats').doc(dateStr);
-  
-  await db.runTransaction(async (transaction) => {
-    const doc = await transaction.get(docRef);
-    const newErrors = (doc.data()?.errorCount || 0) + 1;
-    transaction.update(docRef, { 
-      errorCount: newErrors,
-      lastError: errorMsg,
-      lastErrorTime: new Date().toISOString()
-    });
-  });
+  await pool.query(
+    `INSERT INTO sync_stats (date_str, requests, error_count, last_error, last_error_time)
+     VALUES ($1, 0, 1, $2, NOW())
+     ON CONFLICT (date_str) DO UPDATE SET
+       error_count = sync_stats.error_count + 1,
+       last_error = EXCLUDED.last_error,
+       last_error_time = EXCLUDED.last_error_time`,
+    [dateStr, errorMsg]
+  );
 }
 
 async function updateLastSync() {
   const dateStr = new Date().toISOString().split('T')[0];
-  const docRef = db.collection('sync_stats').doc(dateStr);
-  await docRef.update({ lastSyncTime: new Date().toISOString() });
+  await pool.query(
+    `INSERT INTO sync_stats (date_str, requests, error_count, last_sync_time)
+     VALUES ($1, 0, 0, NOW())
+     ON CONFLICT (date_str) DO UPDATE SET last_sync_time = NOW()`,
+    [dateStr]
+  );
 }
 
 async function canMakeRequest() {
@@ -68,9 +78,6 @@ async function canMakeRequest() {
   return true;
 }
 
-/**
- * Execute a task through the global queue with rate limiting and usage tracking.
- */
 async function enqueueApiCall(task) {
   if (!(await canMakeRequest())) {
     throw new Error('API Daily Limit Reached');
@@ -93,5 +100,5 @@ module.exports = {
   enqueueApiCall,
   getUsage,
   canMakeRequest,
-  queue
+  queue,
 };
