@@ -124,7 +124,7 @@ async function fetchFromApi(endpoint, retries = 3) {
 module.exports = {
   getLiveMatches: () => fetchFromApi('/fixtures?live=all'),
   getUpcomingMatches: (leagueId, season, limit = 50) =>
-    fetchFromApi(`/fixtures?league=${leagueId}&season=${season}&next=${limit}`),
+    fetchFromApi(`/fixtures?league=${leagueId}&season=${season}&from=${new Date().toISOString().split('T')[0]}&to=${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}`),
   getOdds: (fixtureId) => fetchFromApi(`/odds?fixture=${fixtureId}`),
   getFixturesByDate: (date) => fetchFromApi(`/fixtures?date=${date}`),
   getFixtureStatistics: (fixtureId) =>
