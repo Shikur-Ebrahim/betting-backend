@@ -12,11 +12,11 @@ async function initializeOddsData() {
     
     // Sample leagues
     const sampleLeagues = [
-      { id: 39, name: 'Premier League', country: 'England', logo: '/england.png', season: 2024 },
-      { id: 140, name: 'La Liga', country: 'Spain', logo: '/spain.png', season: 2024 },
-      { id: 135, name: 'Serie A', country: 'Italy', logo: '/italy.png', season: 2024 },
-      { id: 78, name: 'Bundesliga', country: 'Germany', logo: '/germany.png', season: 2024 },
-      { id: 61, name: 'Ligue 1', country: 'France', logo: '/france.png', season: 2024 }
+      { id: 39, name: 'Premier League', country: 'England', logo: 'https://media.api-sports.io/football/leagues/39.png', season: 2024 },
+      { id: 140, name: 'La Liga', country: 'Spain', logo: 'https://media.api-sports.io/football/leagues/140.png', season: 2024 },
+      { id: 135, name: 'Serie A', country: 'Italy', logo: 'https://media.api-sports.io/football/leagues/135.png', season: 2024 },
+      { id: 78, name: 'Bundesliga', country: 'Germany', logo: 'https://media.api-sports.io/football/leagues/78.png', season: 2024 },
+      { id: 61, name: 'Ligue 1', country: 'France', logo: 'https://media.api-sports.io/football/leagues/61.png', season: 2024 }
     ];
     
     // Save leagues
